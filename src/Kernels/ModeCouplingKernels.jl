@@ -14,6 +14,7 @@ struct ModeCouplingKernel{F,V,M, M2} <: MemoryKernel
     V1::M
     V2::M
     V3::M
+    Sₖ::V
 end
 
 """
@@ -67,7 +68,7 @@ function ModeCouplingKernel(ρ, kBT, m, k_array, Sₖ)
             V3[iq, ip] = p * q * (q^2 - p^2) * (cq^2 - cp^2) / 2 * D₀ * ρ / (8 * π^2) * Δk * Δk
         end
     end
-    kernel = ModeCouplingKernel(ρ, kBT, m, Nk, k_array, A1, A2, A3, T1, T2, T3, V1, V2, V3)
+    kernel = ModeCouplingKernel(ρ, kBT, m, Nk, k_array, A1, A2, A3, T1, T2, T3, V1, V2, V3, Sₖ)
     return kernel
 end
 
@@ -130,7 +131,7 @@ function bengtzelius3!(T1, T2, T3, A1, A2, A3, Nk)
     end
 end
 
-function fill_A!(kernel::ModeCouplingKernel, F)
+function fill_A!(kernel::ModeCouplingKernel, F; H=F)
     A1 = kernel.A1
     A2 = kernel.A2
     A3 = kernel.A3
@@ -141,7 +142,7 @@ function fill_A!(kernel::ModeCouplingKernel, F)
     @turbo for iq = 1:Nk
         for ip = 1:Nk
             fq = F[iq]
-            fp = F[ip]
+            fp = H[ip]
             f4 = fp * fq
             A1[iq, ip] = V1[iq, ip] * f4
             A2[iq, ip] = V2[iq, ip] * f4
@@ -176,6 +177,33 @@ function evaluate_kernel(kernel::ModeCouplingKernel, F::Vector, t)
     evaluate_kernel!(out, kernel, F, t)
     return out
 end
+
+function evaluate_kernel_linearization!(out::Diagonal, kernel::ModeCouplingKernel, Fc::Vector, H::Vector)
+    A1 = kernel.A1
+    A2 = kernel.A2
+    A3 = kernel.A3
+    T1 = kernel.T1
+    T2 = kernel.T2
+    T3 = kernel.T3
+    k_array = kernel.k_array
+    Sₖ = kernel.Sₖ
+
+    Nk = kernel.Nk
+    fill_A!(kernel, Fc; H=H)
+    bengtzelius3!(T1, T2, T3, A1, A2, A3, Nk)
+
+    @inbounds for ik = 1:Nk
+        k = k_array[ik]
+        out.diag[ik] = 2 * (Sₖ[ik] - Fc[ik]) * (k * kernel.T1[ik] + kernel.T2[ik] / k^3 + kernel.T3[ik] / k) * (Sₖ[ik] - Fc[ik])
+    end
+end
+
+function evaluate_kernel_linearization(kernel::ModeCouplingKernel, Fc::Vector, H::Vector)
+    out = Diagonal(similar(kernel.T1))
+    evaluate_kernel_linearization!(out, kernel, Fc, H)
+    return out
+end
+
 
 struct TaggedModeCouplingKernel{F, V, M2, M, T5, FF} <: MemoryKernel
     ρ::F

@@ -13,6 +13,7 @@ module ModeCouplingTheory
     export AbstractMemoryEquation, MemoryEquation
     export MemoryKernel, evaluate_kernel, evaluate_kernel!
     export find_relaxation_time, solve_steady_state
+    export evaluate_kernel_linearization, solve_eigenvectors
     
     abstract type AbstractMemoryEquation end
 

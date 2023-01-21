@@ -48,6 +48,7 @@ This function assumes δ = 0, since that would lead to a divergence.
 """
 function solve_steady_state(γ, F₀, kernel; tolerance=10^-8, max_iterations=10^6, verbose=false, inplace=true)
     if ismutable(F₀) && inplace
+        println("mutable")
         return solve_steady_state_mutable(γ, F₀, kernel; tolerance=tolerance, max_iterations=max_iterations, verbose=verbose)
     else 
         return solve_steady_state_immutable(γ, F₀, kernel; tolerance=tolerance, max_iterations=max_iterations, verbose=verbose)
@@ -97,4 +98,52 @@ function solve_steady_state_mutable(γ, F₀, kernel; tolerance=10^-8, max_itera
         println("converged after $iterations iterations. Elapsed time = $(round((time()-begintime), digits=3)) seconds.")
     end
     return MemoryEquationSolution([Inf64], [F], [K], (tolerance=tolerance, max_iterations=max_iterations, verbose=verbose))    
+end
+
+function solve_eigenvectors_mutable(Fc, γ, F₀, kernel; tolerance=10^-8, max_iterations=10^6, verbose=false)
+    H = copy(F₀)
+    Hold = copy(H)
+    tmpmat = evaluate_kernel_linearization(kernel, Fc, F₀)
+    if check_if_diag(tmpmat)
+        Hold .= tmpmat.diag
+    else
+        Hold .= tmpmat
+    end
+    error = tolerance*2
+    iterations = 0
+    begintime = time()
+    while error > tolerance
+        iterations += 1
+        if iterations > max_iterations
+            error("The recursive iteration did not converge. The error is $error after $iterations iterations.")
+        end
+        # we need to iterate H = M[Fc,H]
+        evaluate_kernel_linearization!(tmpmat, kernel, Fc, Hold)
+        if check_if_diag(tmpmat)
+            H .= γ .\ tmpmat.diag
+        else
+            H .= γ \ tmpmat
+        end
+        nh = norm(H)
+        if nh > 10^-10
+            H .= H / nh
+        end
+        error = find_error(H, Hold)
+        Hold .= H
+        if verbose
+            println("norm ",nh)
+            println("The error is $(error) after $iterations iterations. Elapsed time = $(round((time()-begintime), digits=3)) seconds.")
+        end
+    end
+    if verbose
+        println("converged after $iterations iterations. Elapsed time = $(round((time()-begintime), digits=3)) seconds.")
+    end
+    return H
+end
+
+function solve_eigenvectors(Fc, γ, F₀, kernel; tolerance=10^-8, max_iterations=10^6, verbose=false, inplace=true)
+    if ismutable(F₀) && inplace
+        return solve_eigenvectors_mutable(Fc, γ, F₀, kernel; tolerance=tolerance, max_iterations=max_iterations, verbose=verbose)
+    else
+    end
 end
