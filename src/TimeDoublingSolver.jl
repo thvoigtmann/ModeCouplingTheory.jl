@@ -230,7 +230,7 @@ setting.
 """
 function update_Fuchs_parameters!(equation::MemoryEquation, solver::TimeDoublingSolver, temp_arrays::FuchsTempStruct, it::Int)
     N = solver.N
-    i2 = 2N
+    i2 = Int(floor(it/2))
     δt = solver.Δt / (4N)
     K_I = temp_arrays.K_I
     F_I = temp_arrays.F_I
