@@ -465,8 +465,8 @@ function new_time_mapping!(equation::AbstractMemoryEquation, solver::TimeDoublin
             K[j] = K[2j]
         end
         for j = (N+1):2*N
-            F_I[j] = (F_I[2j] + 4 * F_I[2j-1] + F_I[2j-2]) / 6
-            K_I[j] = (K_I[2j] + 4 * K_I[2j-1] + K_I[2j-2]) / 6
+            F_I[j] = (F_I[2j] + F_I[2j-1]) / 2
+            K_I[j] = (K_I[2j] + K_I[2j-1]) / 2
             F[j] = F[2j]
             K[j] = K[2j]
         end
@@ -489,11 +489,11 @@ function new_time_mapping!(equation::AbstractMemoryEquation, solver::TimeDoublin
             @. K[j] = K[2j]
         end
         for j = (N+1):2*N
-            @. F_I[j] = (F_I[2j] + 4 * F_I[2j-1] + F_I[2j-2]) / 6
+            @. F_I[j] = (F_I[2j] + F_I[2j-1]) / 2
             if isdiag
-                @. K_I[j].diag = (K_I[2j].diag + 4 * K_I[2j-1].diag + K_I[2j-2].diag) / 6
+                @. K_I[j].diag = (K_I[2j].diag + K_I[2j-1].diag) / 2
             else
-                @. K_I[j] = (K_I[2j] + 4 * K_I[2j-1] + K_I[2j-2]) / 6
+                @. K_I[j] = (K_I[2j] + K_I[2j-1]) / 2
             end
             @. F[j] = F[2j]
             @. K[j] = K[2j]
